@@ -7,7 +7,8 @@ Rules: https://en.wikipedia.org/wiki/FreeCell
 - T: generate a new seed
 
 ## To-Do:
-[] Save system
-[] Multiple card grabbing
-[] Better card grabbing
-[] Optimize
+- [ ] Save system
+- [ ] Multiple card grabbing
+- [ ] Better card grabbing
+- [ ] Undo / Redo
+- [ ] Optimize
