@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-import pygame as pg
+import os
 import random
+import sys
+import pygame as pg
 
+ASSETS_DIR = os.path.join("..", "assets")
 ASSETS = {
-    "bg": "../assets/backgrounds_stacks.png",
-    "cards": "../assets/cards.png"
+    "bg": os.path.join(ASSETS_DIR, "backgrounds_stacks.png"),
+    "cards": os.path.join(ASSETS_DIR, "cards.png"),
 }
 
 CARDSIZE   = (133, 200)
@@ -33,7 +36,7 @@ class Card:
             )
         except Exception as e:
             print(f"ERROR: Card index does not exist")
-            return None
+            exit(1)
 
     def setCascadePos(self, x: int, y: int):
         self.pos = (
@@ -123,18 +126,22 @@ def checkEvents(cards: list, cells: list, idx: (int, int)) -> (int, int):
     return idx
 
 def initCards(surface: pg.Surface, seed: str) -> list[Card]:
-    deck = [[] for i in range(8)]
-    cards = [Card(surface, card[0], card[1]) for card in seed.split(" ")]
+    try:
+        deck = [[] for i in range(8)]
+        cards = [Card(surface, card[0], card[1]) for card in seed.split(" ")]
 
-    for i, cascade in enumerate(deck[:4]):
-        for j in range(7):
-            cascade.append(cards.pop(0))
-            cascade[-1].setCascadePos(i, j)
-    for i, cascade in enumerate(deck[4:]):
-        for j in range(6):
-            cascade.append(cards.pop(0))
-            cascade[-1].setCascadePos(i + 4, j)
-    return deck
+        for i, cascade in enumerate(deck[:4]):
+            for j in range(7):
+                cascade.append(cards.pop(0))
+                cascade[-1].setCascadePos(i, j)
+        for i, cascade in enumerate(deck[4:]):
+            for j in range(6):
+                cascade.append(cards.pop(0))
+                cascade[-1].setCascadePos(i + 4, j)
+        return deck
+    except:
+        print("ERROR: wrong seed")
+        exit(1)
 
 def getNewSeed():
     cards = [nb + color for color in COLORS for nb in NUMBERS]
@@ -150,7 +157,7 @@ def main():
     bgIMG = pg.image.load(ASSETS["bg"])
     cardsIMG = pg.image.load(ASSETS["cards"])
     window = pg.display.set_mode(WINDOWSIZE)
-    seed = getNewSeed()
+    seed = getNewSeed() if len(sys.argv) < 2 else sys.argv[1]
     cards = initCards(cardsIMG, seed)
     bgColor = (0x31, 0xA1, 0x27)
     idx = None
