@@ -2,60 +2,135 @@
 import pygame as pg
 import random
 
-ASSETS = [
-    "../assets/cards.png"
-]
+ASSETS = {
+    "cards": "../assets/cards.png"
+}
+
+CARDSIZE   = (133, 200)
+PADDING    = 0.1 * CARDSIZE[0]
+WINDOWSIZE = (8 * (CARDSIZE[0] + PADDING) + PADDING, 15 * CARDSIZE[1] / 2)
 
 NUMBERS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
 COLORS = ['H', 'C', 'D', 'S']
 
 class Card:
-    def __init__(self, surface: pg.surface, number: str, color: str):
+    value = ('', '')
+    surface = 0
+    pos = (0, 0)
+    rect = (0, 0, 0, 0)
+
+    def __init__(self, surface: pg.surface, number: str, col: str):
+        self.value = (number, col)
+        self.surface = surface
         try:
-            self.value = number + color
-            self.surface = surface
             self.rect = pg.Rect(
-                NUMBERS.index(number) * 81,
-                COLORS.index(color) * 117,
-                81,
-                117
+                NUMBERS.index(number) * CARDSIZE[0],
+                COLORS.index(col) * CARDSIZE[1],
+                CARDSIZE[0],
+                CARDSIZE[1]
             )
         except Exception as e:
-            print(f"{number + color}\n{e}")
-            exit(1)
+            print(f"ERROR: Card index does not exist")
+            return None
 
-def initCards(surface: pg.Surface, seed = None, shuffle = True) -> list[Card]:
-    deck = [[] for i in range(8)]
+    def setCascadePos(self, x: int, y: int):
+        self.pos = (x * (CARDSIZE[0] + PADDING) + PADDING, y * CARDSIZE[1] * 0.325)
 
-    if not seed:
-        cards = [Card(surface, nb, color) for color in COLORS for nb in NUMBERS]
-        if shuffle:
-            random.shuffle(cards)
-    else:
-        cards = [Card(sprite, card[0], card[1]) for card in seed.split(" ")]
-    for col in deck[:4]:
-        for i in range(7):
-            col.append(cards.pop())
-    for col in deck[4:]:
-        for i in range(6):
-            col.append(cards.pop())
-    return deck
+    def setPos(self, pos: (int, int)):
+        self.pos = pos
 
-def checkEvents():
+    def display(self, window: pg.display):
+        window.blit(self.surface, self.pos, self.rect)
+
+def getCard(cards: list, mousePos: (int, int)) -> (int, int):
+    cascade = -1
+    card = -1
+
+    for i, el in enumerate(cards):
+        if el[0].pos[0] <= mousePos[0] <= el[0].pos[0] + CARDSIZE[0]:
+            cascade = i
+            break
+    if cascade == -1:
+        return None
+    for i, el in enumerate(cards[i]):
+        if el.pos[1] <= mousePos[1] <= el.pos[1] + CARDSIZE[1]:
+            card = i
+    if card == -1:
+        return None
+    return (cascade, card)
+
+def checkEvents(cards: list, idx: (int, int)) -> (int, int):
     for event in pg.event.get():
         if event.type == pg.QUIT:
+            pg.quit()
             exit()
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_r:
+                return -1
+            elif event.key == pg.K_t:
+                return -2
+        elif event.type == pg.MOUSEBUTTONDOWN and pg.mouse.get_pressed()[0]:
+            idx = getCard(cards, pg.mouse.get_pos())
+            if not idx or idx[1] != len(cards[idx[0]]) - 1:
+                return None
+        elif event.type == pg.MOUSEBUTTONUP and idx and not pg.mouse.get_pressed()[0]:
+            newIDX = getCard(cards, pg.mouse.get_pos())
+            if newIDX and newIDX[0] != idx[0] and                                                                                   \
+                    NUMBERS.index(cards[newIDX[0]][newIDX[1]].value[0]) == NUMBERS.index(cards[idx[0]][idx[1]].value[0]) + 1 and    \
+                    COLORS.index(cards[newIDX[0]][newIDX[1]].value[1]) % 2 != COLORS.index(cards[idx[0]][idx[1]].value[1]) % 2:
+                cards[idx[0]][idx[1]].setCascadePos(newIDX[0], len(cards[newIDX[0]]))
+                cards[newIDX[0]].append(cards[idx[0]].pop())
+            else:
+                cards[idx[0]][idx[1]].setCascadePos(idx[0], idx[1])
+            idx = None
+    return idx
+
+def initCards(surface: pg.Surface, seed: str) -> list[Card]:
+    deck = [[] for i in range(8)]
+    cards = [Card(surface, card[0], card[1]) for card in seed.split(" ")]
+
+    for i, cascade in enumerate(deck[:4]):
+        for j in range(7):
+            cascade.append(cards.pop(0))
+            cascade[-1].setCascadePos(i, j)
+    for i, cascade in enumerate(deck[4:]):
+        for j in range(6):
+            cascade.append(cards.pop(0))
+            cascade[-1].setCascadePos(i + 4, j)
+    return deck
+
+def getNewSeed():
+    cards = [nb + color for color in COLORS for nb in NUMBERS]
+    maxIDX = len(cards) - 1
+    seed = ""
+
+    while maxIDX >= 0:
+        seed += cards.pop(random.randint(0, maxIDX)) + " "
+        maxIDX -= 1
+    return seed[:len(seed) - 1]
 
 def main():
-    window = pg.display.set_mode((800, 600), flags = pg.RESIZABLE)
-    cardsIMG = pg.image.load(ASSETS[0])
-    cards = initCards(cardsIMG)
+    window = pg.display.set_mode(WINDOWSIZE)
+    cardsIMG = pg.image.load(ASSETS["cards"])
+    seed = getNewSeed()
+    cards = initCards(cardsIMG, seed)
+    bgColor = (0x31, 0xA1, 0x27)
+    idx = None
 
     while 1:
-        checkEvents()
-        for i, col in enumerate(cards):
-            for j, card in enumerate(col):
-                window.blit(card.surface, (i * 91, j * 117 / 2), card.rect)
+        idx = checkEvents(cards, idx)
+        if idx == -1 or idx == -2:
+            if idx == -2:
+                seed = getNewSeed()
+            cards = initCards(cardsIMG, seed)
+            idx = None
+        window.fill(bgColor)
+        for cascade in cards:
+            for card in cascade:
+                card.display(window)
+        if idx:
+            cards[idx[0]][idx[1]].setPos(pg.mouse.get_pos())
+            cards[idx[0]][idx[1]].display(window)
         pg.display.flip()
 
 if __name__ == "__main__":
