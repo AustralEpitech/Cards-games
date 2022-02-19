@@ -14,6 +14,7 @@ CARDSIZE = (133, 200)
 CARDSPACE = CARDSIZE[1] * 0.325
 PADDING = 0.1 * CARDSIZE[0]
 WINDOWSIZE = (8 * (CARDSIZE[0] + PADDING) + PADDING, 15 * CARDSPACE)
+maxMov = 1
 
 NUMBERS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
 COLORS = ['H', 'C', 'D', 'S']
@@ -45,29 +46,40 @@ class Card:
     def setPos(self, pos: (int, int)):
         self.pos = pos
 
+    def getPos(self) -> (int, int):
+        return (self.pos[0], self.pos[1])
+
+    def isBTWX(self, x: int) -> bool:
+        return self.pos[0] <= x <= self.pos[0] + self.rect[2]
+
+    def isBTWY(self, y: int) -> bool:
+        return self.pos[1] <= y <= self.pos[1] + self.rect[3]
+
+    def isClicked(self, mousePos: (int, int)) -> bool:
+        return isBTWX(mousePos[0]) and isBTWY(mousePos[1])
+
     def display(self, window: pg.display):
         window.blit(self.surface, self.pos, self.rect)
 
-def getCard(cards: list, mousePos: (int, int)) -> (int, int):
+def getCard(cards: list[list[Card]], cells: list[Card], mousePos: (int, int)) -> (int, int):
     cascade = -1
-    card = -1
+    lenC = 0
 
     if PADDING <= mousePos[1] <= PADDING + CARDSIZE[0]:
-        for i in range(4):
+        for i, cell in enumerate(cells):
             if i * (CARDSIZE[0] + PADDING) + PADDING <= mousePos[0] <= i * (CARDSIZE[0] + PADDING) + PADDING + CARDSIZE[0]:
                 return i
     for i, el in enumerate(cards):
-        if el[0].pos[0] <= mousePos[0] <= el[0].pos[0] + CARDSIZE[0]:
+        if el[0].isBTWX(mousePos[0]):
             cascade = i
             break
     if cascade == -1:
         return None
-    for i, el in enumerate(cards[i]):
-        if el.pos[1] <= mousePos[1] <= el.pos[1] + CARDSIZE[1]:
-            card = i
-    if card == -1:
-        return None
-    return (cascade, card)
+    lenC = len(cards[cascade]) - 1
+    for card in range(lenC, lenC - maxMov, -1):
+        if cards[cascade][card].isBTWY(mousePos[1]):
+            return (cascade, card)
+    return None
 
 def drawBG(bgIMG: pg.surface, window: pg.display, bgColor: (int, int, int)):
     window.fill(bgColor)
@@ -95,7 +107,7 @@ def checkEvents(cards: list, cells: list, idx: (int, int)) -> (int, int):
             if event.key == pg.K_t:
                 return -2
         elif event.type == pg.MOUSEBUTTONDOWN and pg.mouse.get_pressed()[0]:
-            idx = getCard(cards, pg.mouse.get_pos())
+            idx = getCard(cards, cells, pg.mouse.get_pos())
             if type(idx) == int:
                 if not cells[idx]:
                     return None
@@ -103,7 +115,7 @@ def checkEvents(cards: list, cells: list, idx: (int, int)) -> (int, int):
             if idx == None or idx[1] != len(cards[idx[0]]) - 1:
                 return None
         elif event.type == pg.MOUSEBUTTONUP and idx != None and not pg.mouse.get_pressed()[0]:
-            newIDX = getCard(cards, pg.mouse.get_pos())
+            newIDX = getCard(cards, cells, pg.mouse.get_pos())
             if type(newIDX) == int:
                 if cells[newIDX]:
                     if type(idx) == int:
