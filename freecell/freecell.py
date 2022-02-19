@@ -235,11 +235,13 @@ def main():
             if card:
                 card.display(window)
         if idx != None:
+            mousePos = pg.mouse.get_pos()
+            pos = (mousePos[0] - CARDSIZE[0] / 2, mousePos[1] - CARDSIZE[1] / 2)
             if type(idx) == int:
-                cells[idx].setPos(pg.mouse.get_pos())
+                cells[idx].setPos(pos)
                 cells[idx].display(window)
             else:
-                cards[idx[0]][idx[1]].setPos(pg.mouse.get_pos())
+                cards[idx[0]][idx[1]].setPos(pos)
                 cards[idx[0]][idx[1]].display(window)
         pg.display.flip()
 
