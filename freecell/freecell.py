@@ -4,7 +4,7 @@ import random
 import sys
 import pygame as pg
 
-ASSETS_DIR = os.path.join("..", "assets")
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets")
 ASSETS = {
     "bg": os.path.join(ASSETS_DIR, "backgrounds_stacks.png"),
     "cards": os.path.join(ASSETS_DIR, "cards.png"),
