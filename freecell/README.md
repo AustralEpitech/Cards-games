@@ -14,8 +14,11 @@ python3 ./freecell.py [seed]
     - **T**: generate a new seed
 
 ## To-Do:
-- [ ] Save system
+- [ ] Base mechanics
+- [ ] Optimize
 - [ ] Multiple card grabbing
+- [ ] Save system
 - [ ] Better card grabbing
 - [ ] Undo / Redo
-- [ ] Optimize
+- [ ] Auto move on click
+- [ ] Auto complete
