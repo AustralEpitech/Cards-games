@@ -10,13 +10,13 @@ python3 ./freecell.py [seed]
 - **seed**: Optional initial set of cards using the [Freecell Solver’s input format](http://fc-solve.shlomifish.org/docs/distro/README.html)
 
 - **Keys**:
-    - **R**: reset current layout
+    - **R**: reset current seed
     - **T**: generate a new seed
 
 ## To-Do:
 - [x] Base mechanics
+- [x] Optimization
 - [ ] Multiple card grabbing
-- [ ] Optimize
 - [ ] Save system
 - [ ] Undo / Redo
 - [ ] Auto complete

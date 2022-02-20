@@ -1,251 +1,111 @@
 #!/usr/bin/env python3
-import os
-import random
 import sys
+import os
 import pygame as pg
 
-ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets")
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import cardEngine as ce
+
 ASSETS = {
-    "bg": os.path.join(ASSETS_DIR, "backgrounds_stacks.png"),
-    "cards": os.path.join(ASSETS_DIR, "cards.png"),
+    "bg": os.path.join(   ce.ASSETS_DIR, "backgrounds_stacks.png"),
+    "cards": os.path.join(ce.ASSETS_DIR, "cards.png")
 }
 
-CARDSIZE = (133, 200)
-CARDSPACE = CARDSIZE[1] * 0.325
-PADDING = 0.1 * CARDSIZE[0]
-WINDOWSIZE = (8 * (CARDSIZE[0] + PADDING) + PADDING, 15 * CARDSPACE)
-maxMov = 1
-
-NUMBERS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
-COLORS = ['H', 'C', 'D', 'S']
-
-class Card:
-    value = ('', '')
-    surface = 0
-    pos = (0, 0)
-    rect = (0, 0, 0, 0)
-
-    def __init__(self, surface: pg.surface, number: str, col: str):
-        self.value = (number, col)
-        self.surface = surface
-        try:
-            self.rect = pg.Rect(
-                NUMBERS.index(number) * CARDSIZE[0],
-                COLORS.index(col) * CARDSIZE[1],
-                CARDSIZE[0],
-                CARDSIZE[1]
-            )
-        except Exception as e:
-            print(f"ERROR: Card index does not exist")
-            exit(1)
-
-    def setCascadePos(self, x: int, y: int):
-        self.pos = (x * (CARDSIZE[0] + PADDING) + PADDING,
-                    CARDSIZE[1] + 2 * PADDING + y * CARDSPACE)
-
-    def setPos(self, pos: (int, int)):
-        self.pos = pos
-
-    def getPos(self) -> (int, int):
-        return (self.pos[0], self.pos[1])
-
-    def isBTWX(self, x: int) -> bool:
-        return self.pos[0] <= x <= self.pos[0] + self.rect[2]
-
-    def isBTWY(self, y: int) -> bool:
-        return self.pos[1] <= y <= self.pos[1] + self.rect[3]
-
-    def isClicked(self, mousePos: (int, int)) -> bool:
-        return isBTWX(mousePos[0]) and isBTWY(mousePos[1])
-
-    def display(self, window: pg.display):
-        window.blit(self.surface, self.pos, self.rect)
-
-def drawBG(bgIMG: pg.surface, window: pg.display, bgColor: (int, int, int)):
-    window.fill(bgColor)
-    for i in range(4):
-        window.blit(
-            bgIMG,
-            (i * (CARDSIZE[0] + PADDING) + PADDING, PADDING),
-            (0, 0, CARDSIZE[0], CARDSIZE[1])
-        )
-    for i in range(4, 8):
-        window.blit(
-            bgIMG,
-            (i * (CARDSIZE[0] + PADDING) + PADDING, PADDING),
-            (CARDSIZE[0] * 2, 0, CARDSIZE[0], CARDSIZE[1])
-        )
-
-def getCard(cards: list[list[Card]], cells: list[Card], piles: list[Card], mousePos: (int, int)) -> (int, int):
-    cascade = -1
-    lenC = 0
-
-    if PADDING <= mousePos[1] <= PADDING + CARDSIZE[0]:
-        for i, cell in enumerate(cells):
-            if i * (CARDSIZE[0] + PADDING) + PADDING <= mousePos[0] <= i * (CARDSIZE[0] + PADDING) + PADDING + CARDSIZE[0]:
-                return i
-        for i, pile in enumerate(piles):
-            if (4 + i) * (CARDSIZE[0] + PADDING) + PADDING <= mousePos[0] <= (4 + i) * (CARDSIZE[0] + PADDING) + PADDING + CARDSIZE[0]:
-                return i + 4
-    for i, el in enumerate(cards):
-        if el[0].isBTWX(mousePos[0]):
-            cascade = i
-            break
-    if cascade == -1:
-        return None
-    lenC = len(cards[cascade]) - 1
-    for card in range(lenC, lenC - maxMov, -1):
-        if cards[cascade][card].isBTWY(mousePos[1]):
-            return (cascade, card)
+#TODO: multiple cards
+def getCard(pos: (int, int)) -> ce.Card:
+    if ce.isY(ce.CELLS[0]["pos"][1], pos[1]):
+        for el in ce.CELLS:
+            if el["card"] and ce.isX(el["pos"][0], pos[0]):
+                return el["card"]
+    for c in ce.CASCADES:
+        if ce.isX(c["cards"][0].pos[0], pos[0]):
+            if not c["cards"] or not ce.isY(c["cards"][-1].pos[1], pos[1]):
+                return None
+            return c["cards"][-1]
     return None
 
-def checkEvents(cards: list[list[Card]], cells: list[Card], piles: list[Card], idx: (int, int)) -> (int, int):
+def checkCells(card: ce.Card, pos: (int, int)) -> int:
+    for el in ce.CELLS:
+        if not ce.isX(el["pos"][0], pos[0]):
+            continue
+        if not el["card"]:
+            el["card"] = card.setStatus(1, el["pos"])
+        return 1
+    return 0
+
+def checkPiles(card: ce.Card, pos: (int, int)) -> int:
+    for el in ce.PILES:
+        if not ce.isX(el["pos"][0], pos[0]):
+            continue
+        if not el["card"]:
+            if card.nb == 0:
+                el["card"] = card.setStatus(2, el["pos"])
+        elif el["card"].nb == card.nb - 1:
+            el["card"] = card.setStatus(2, el["pos"])
+        return 1
+    return 0
+
+def checkCascades(card: ce.Card, pos: (int, int)) -> int:
+    for el in ce.CASCADES:
+        if not ce.isX(el["pos"][0], pos[0]):
+            continue
+        if not el["cards"] or \
+                (el["cards"][-1].col % 2 != card.col % 2 and \
+                el["cards"][-1].nb == card.nb + 1):
+            el["cards"].append(card.setStatus(
+                0, (el["pos"][0], el["pos"][1] + len(el["cards"]) * ce.CSPACE)))
+        return 1
+    return 0
+
+def checkEvents(card: ce.Card) -> ce.Card:
     for event in pg.event.get():
         if event.type == pg.QUIT:
             pg.quit()
             exit()
         if event.type == pg.KEYDOWN:
-            if event.key == pg.K_r:
-                return -1
-            if event.key == pg.K_t:
-                return -2
-        elif event.type == pg.MOUSEBUTTONDOWN and pg.mouse.get_pressed()[0]:
-            idx = getCard(cards, cells, piles, pg.mouse.get_pos())
-            if type(idx) == int:
-                if idx > 3 or not cells[idx]:
-                    return None
-                return idx
-            if idx == None or idx[1] != len(cards[idx[0]]) - 1:
-                return None
-        elif event.type == pg.MOUSEBUTTONUP and idx != None and not pg.mouse.get_pressed()[0]:
-            newIDX = getCard(cards, cells, piles, pg.mouse.get_pos())
-            if type(idx) == int:
-                card = cells[idx]
+            if event.__dict__["unicode"] == 'r':
+                ce.newGame(ce.SEED)
+            elif event.__dict__["unicode"] == 't':
+                ce.newGame(None)
+        elif event.type == pg.MOUSEBUTTONDOWN and event.__dict__["button"] == 1:
+            card = getCard(pg.mouse.get_pos())
+            if card:
+                card.prevPos = card.pos
+        elif event.type == pg.MOUSEBUTTONUP and event.__dict__["button"] == 1 and card:
+            pos = pg.mouse.get_pos()
+
+            if ce.isY(ce.CELLS[0]["pos"][1], pos[1]):
+                checkCells(card, pos) or checkPiles(card, pos)
             else:
-                card = cards[idx[0]][idx[1]]
-            if type(newIDX) == int:
-                if newIDX <= 3:
-                    if cells[newIDX]:
-                        if type(idx) == int:
-                            card.setPos((idx * (CARDSIZE[0] + PADDING) + PADDING, PADDING))
-                        else:
-                            card.setCascadePos(idx[0], len(cards[idx[0]]) - 1)
-                        return None
-                    card.setPos((newIDX * (CARDSIZE[0] + PADDING) + PADDING, PADDING))
-                    if type(idx) == int:
-                        cells[newIDX] = cells[idx]
-                        cells[idx] = None
-                    else:
-                        cells[newIDX] = cards[idx[0]].pop()
-                else:
-                    newIDX -= 4
-                    if (piles[newIDX] and piles[newIDX].value[1] == card.value[1] and NUMBERS.index(piles[newIDX].value[0]) == NUMBERS.index(card.value[0]) - 1) or \
-                            (not piles[newIDX] and card.value[0] == 'A'):
-                        card.setPos(((newIDX + 4) * (CARDSIZE[0] + PADDING) + PADDING, PADDING))
-                        if type(idx) == int:
-                            piles[newIDX] = cells[idx]
-                            cells[idx] = None
-                        else:
-                            piles[newIDX] = cards[idx[0]].pop()
-                    else:
-                        if type(idx) == int:
-                            card.setPos((idx * (CARDSIZE[0] + PADDING) + PADDING, PADDING))
-                        else:
-                            card.setCascadePos(idx[0], len(cards[idx[0]]) - 1)
-                return None
-            if type(idx) == int:
-                card = cells[idx]
-            else:
-                card = cards[idx[0]][idx[1]]
-            if newIDX != None and                                                                               \
-                    NUMBERS.index(cards[newIDX[0]][newIDX[1]].value[0]) == NUMBERS.index(card.value[0]) + 1 and \
-                    COLORS.index(cards[newIDX[0]][newIDX[1]].value[1]) % 2 != COLORS.index(card.value[1]) % 2:
-                card.setCascadePos(newIDX[0], len(cards[newIDX[0]]))
-                if type(idx) == int:
-                    cells[idx] = None
-                else:
-                    cards[idx[0]].pop()
-                cards[newIDX[0]].append(card)
-            else:
-                if type(idx) == int:
-                    cells[idx].setPos((idx * (CARDSIZE[0] + PADDING) + PADDING, PADDING))
-                else:
-                    cards[idx[0]][idx[1]].setCascadePos(idx[0], idx[1])
-            return None
-    return idx
+                checkCascades(card, pos)
+            card.pos = card.prevPos
+            card = None
+    return card
 
-def initCards(surface: pg.Surface, seed: str) -> list[Card]:
-    try:
-        deck = [[] for i in range(8)]
-        cards = [Card(surface, card[0], card[1]) for card in seed.split(" ")]
-
-        for i, cascade in enumerate(deck[:4]):
-            for j in range(7):
-                cascade.append(cards.pop(0))
-                cascade[-1].setCascadePos(i, j)
-        for i, cascade in enumerate(deck[4:]):
-            for j in range(6):
-                cascade.append(cards.pop(0))
-                cascade[-1].setCascadePos(i + 4, j)
-        return deck
-    except:
-        print("ERROR: wrong seed")
-        exit(1)
-
-def getNewSeed():
-    cards = [nb + color for color in COLORS for nb in NUMBERS]
-    maxIDX = len(cards) - 1
-    seed = ""
-
-    while maxIDX >= 0:
-        seed += cards.pop(random.randint(0, maxIDX)) + " "
-        maxIDX -= 1
-    seed = seed[:len(seed) - 1]
-    print(f"seed = \"{seed}\"")
-    return seed
+def displayGame(card: ce.Card, cellsRect: pg.rect, pilesRect: pg.rect):
+    ce.WINDOW.fill(ce.BGCOL)
+    ce.drawSlots(ce.CELLS, cellsRect)
+    ce.drawSlots(ce.PILES, pilesRect)
+    ce.drawCascades()
+    if card:
+        card.display()
+    pg.display.flip()
 
 def main():
-    bgIMG = pg.image.load(ASSETS["bg"])
-    cardsIMG = pg.image.load(ASSETS["cards"])
-    window = pg.display.set_mode(WINDOWSIZE)
-    seed = getNewSeed() if len(sys.argv) < 2 else sys.argv[1]
-    cards = initCards(cardsIMG, seed)
-    bgColor = (0x31, 0xA1, 0x27)
-    idx = None
-    cells = [None, None, None, None]
-    piles = [None, None, None, None]
+    cellsRect = pg.Rect(0, 0, ce.CSIZE[0], ce.CSIZE[1])
+    pilesRect = pg.Rect(ce.CSIZE[0] * 2, 0, ce.CSIZE[0], ce.CSIZE[1])
+    bgCol = (0x31, 0xA1, 0x27)
+    card = None
 
+    ce.init(ASSETS, sys.argv[1] if len(sys.argv) >= 2 else None, bgCol)
     while 1:
-        idx = checkEvents(cards, cells, piles, idx)
-        if type(idx) == int and idx < 0:
-            if idx == -2:
-                seed = getNewSeed()
-            cards = initCards(cardsIMG, seed)
-            cells = [None, None, None, None]
-            piles = [None, None, None, None]
-            idx = None
-        drawBG(bgIMG, window, bgColor)
-        for cascade in cards:
-            for card in cascade:
-                card.display(window)
-        for card in cells:
-            if card:
-                card.display(window)
-        for card in piles:
-            if card:
-                card.display(window)
-        if idx != None:
+        card = checkEvents(card) # reset game
+        if card:
             mousePos = pg.mouse.get_pos()
-            pos = (mousePos[0] - CARDSIZE[0] / 2, mousePos[1] - CARDSIZE[1] / 2)
-            if type(idx) == int:
-                cells[idx].setPos(pos)
-                cells[idx].display(window)
-            else:
-                cards[idx[0]][idx[1]].setPos(pos)
-                cards[idx[0]][idx[1]].display(window)
-        pg.display.flip()
+            pos = (mousePos[0] - ce.CSIZE[0] / 2, mousePos[1] - ce.CSIZE[1] / 2)
+            card.pos = pos
+        displayGame(card, cellsRect, pilesRect)
+    pg.quit()
 
 if __name__ == "__main__":
-    pg.init()
     main()
-    pg.quit()
