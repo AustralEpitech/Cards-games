@@ -24,6 +24,8 @@ SEED = None
 BGCOL = None
 WINDOW = None
 
+MAXMOV = 4
+
 CASCADES = [
     {"cards": [], "pos": (i * XPADDING + PADDING, YPADDING + PADDING)}
 for i in range(8)]
@@ -36,14 +38,16 @@ PILES = [
     {"card": None, "pos": (i * XPADDING + PADDING, PADDING)}
 for i in range(4, 8)]
 
+
 class Card:
     nb = 0
     col = 0
     surface = 0
     pos = (0, 0)
-    prevPos = (0, 0)
+    prev_pos = (0, 0)
     rect = (0, 0, 0, 0)
     status = 0  # cascades, cells or piles
+
 
     def __init__(self, surface: pg.surface, nb: int, col: int):
         self.nb = nb
@@ -51,45 +55,59 @@ class Card:
         self.surface = surface
         self.rect = pg.Rect(nb * CSIZE[0], col * CSIZE[1], CSIZE[0], CSIZE[1])
 
+
     def remove(self):
         if self.status == 0:
             for cascade in CASCADES:
                 if cascade["cards"][-1] == self:
                     cascade["cards"].pop()
+                    return
         for el in CELLS:
             if el["card"] == self:
+                MAXMOV += 1
                 el["card"] = None
+                return
 
-    def setStatus(self, status: int, pos: (int, int)):
+
+    def set_status(self, status: int, pos: (int, int)):
         self.remove()
-        self.pos = self.prevPos = pos
+        self.pos = self.prev_pos = pos
         self.status = status
+        if status == 1:
+            MAXMOV += 1
         return self
+
 
     def display(self):
         WINDOW.blit(self.surface, self.pos, self.rect)
 
-def isX(cardX: int, x: int) -> bool:
-    return cardX <= x <= cardX + CSIZE[0]
 
-def isY(cardY: int, y: int) -> bool:
-    return cardY <= y <= cardY + CSIZE[1]
+def is_x(card_x: int, x: int) -> bool:
+    return card_x <= x <= card_x + CSIZE[0]
 
-def isXY(cardPos: (int, int), pos: (int, int)) -> bool:
-    return isX(cardPos[0], pos[0]) and isY(cardPos[0], pos[1])
 
-def drawSlots(array: list, rect: pg.rect):
+def is_y(card_y: int, y: int) -> bool:
+    return card_y <= y <= card_y + CSIZE[1]
+
+
+def is_xy(card_pos: (int, int), pos: (int, int)) -> bool:
+    return is_x(card_pos[0], pos[0]) and is_y(card_pos[0], pos[1])
+
+
+def draw_slots(array: list, rect: pg.rect):
     for el in array:
         WINDOW.blit(TEXTURES["bg"], el["pos"], rect)
         if el["card"]:
             el["card"].display()
 
-def drawCascades():
+
+def draw_cascades():
     for cascade in CASCADES:
         for card in cascade["cards"]:
             card.display()
 
-def initCards():
+
+def init_cards():
     try:
         cards = [
             Card(TEXTURES["card"], NUMBERS.index(card[0]), COLORS.index(card[1]))
@@ -107,36 +125,41 @@ def initCards():
         print("ERROR: Wrong seed")
         exit(1)
 
+
 # TODO: error handling
-def getNewSeed():
+def get_new_seed() -> None:
     cards = [nb + color for color in COLORS for nb in NUMBERS]
-    maxIDX = len(cards) - 1
+    max_idx = len(cards) - 1
     seed = ""
 
-    while maxIDX >= 0:
-        seed += cards.pop(random.randint(0, maxIDX)) + " "
-        maxIDX -= 1
+    while max_idx >= 0:
+        seed += cards.pop(random.randint(0, max_idx)) + " "
+        max_idx -= 1
     seed = seed[:-1]
     print(f"seed = \"{seed}\"")
     return seed
 
-def newGame(seed: str):
+
+def new_game(seed: str) -> None:
     global SEED
+    global MAXMOV
 
     for el in CASCADES:
         el["cards"] = []
     for i, _ in enumerate(CELLS):
         CELLS[i]["card"] = PILES[i]["card"] = None
-    SEED = seed or getNewSeed()
-    initCards()
+    SEED = seed or get_new_seed()
+    MAXMOV = 4
+    init_cards()
 
-def init(assets: list[str], seed: str, bgCol: (int, int, int)):
+
+def init(assets: list[str], seed: str, bg_col: (int, int, int)) -> None:
     global WINDOW
     global BGCOL
 
     pg.init()
     WINDOW = pg.display.set_mode(WINDOWSIZE)
-    BGCOL = bgCol
+    BGCOL = bg_col
     TEXTURES["bg"] = pg.image.load(assets["bg"])
     TEXTURES["card"] = pg.image.load(assets["cards"])
-    newGame(seed)
+    new_game(seed)
