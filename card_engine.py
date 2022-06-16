@@ -24,7 +24,7 @@ SEED = None
 BGCOL = None
 WINDOW = None
 
-MAXMOV = 4
+MAXMOV = 0
 
 CASCADES = [
     {"cards": [], "pos": (i * XPADDING + PADDING, YPADDING + PADDING)}
@@ -64,22 +64,29 @@ class Card:
                     return
         for el in CELLS:
             if el["card"] == self:
-                MAXMOV += 1
                 el["card"] = None
                 return
 
 
     def set_status(self, status: int, pos: (int, int)):
+        global MAXMOV
+
         self.remove()
         self.pos = self.prev_pos = pos
+        if self.status == 1:
+            MAXMOV += 1
         self.status = status
         if status == 1:
-            MAXMOV += 1
+            MAXMOV -= 1
         return self
 
 
     def display(self):
         WINDOW.blit(self.surface, self.pos, self.rect)
+
+
+    def __repr__(self):
+        return NUMBERS[self.nb] + COLORS[self.col]
 
 
 def is_x(card_x: int, x: int) -> bool:
@@ -116,15 +123,16 @@ def init_cards():
         for cascade in CASCADES[:4]:
             for y in range(7):
                 cards[0].pos = (cascade["pos"][0], cascade["pos"][1] + CSPACE * y)
+                cards[0].prev_pos = cards[0].pos
                 cascade["cards"].append(cards.pop(0))
         for cascade in CASCADES[4:]:
             for y in range(6):
                 cards[0].pos = (cascade["pos"][0], cascade["pos"][1] + CSPACE * y)
+                cards[0].prev_pos = cards[0].pos
                 cascade["cards"].append(cards.pop(0))
     except:
         print("ERROR: Wrong seed")
-        exit(1)
-
+        sys.exit(1)
 
 # TODO: error handling
 def get_new_seed() -> None:
